@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path"
 	"recycle/utils"
 
@@ -48,7 +49,8 @@ func store(targets []string) {
 		)
 	}
 	for _, postpone := range postponedFileMoveQueue {
-		e = moveFile(postpone.from, postpone.to)
+		cmd := exec.Command("mv", postpone.from, postpone.to)
+		_, e := cmd.Output()
 		utils.Unwrap(e)
 	}
 	tx.Commit()
@@ -102,7 +104,7 @@ func setupDb() {
 		DB_PATH,
 	)
 	utils.Unwrap(e)
-	db.MustExec(schema)
+	db.Exec(schema)
 }
 
 func main() {
