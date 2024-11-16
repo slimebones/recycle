@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path"
 	"recycle/utils"
+	"regexp"
 	"strings"
 
 	_ "github.com/glebarez/go-sqlite"
@@ -66,20 +67,35 @@ type Entry struct {
 	DeletionTime utils.Time `db:"deletion_time"`
 }
 
+// Since path.Join completely truncates structures like `../../`, they are
+// not supported for now.
 func list(target string) {
-	if !path.IsAbs(target) {
+	// path.IsAbs incorrectly recognizes windows disks `E:/`. To address that,
+	// we use an additional regex check.
+	isStartedWithDisk, e := regexp.MatchString(`^[A-Z]:/.+`, target)
+	utils.Unwrap(e)
+	if !path.IsAbs(target) && !isStartedWithDisk {
 		cwd, e := os.Getwd()
 		utils.Unwrap(e)
 		target = path.Join(cwd, target)
 	}
-	target = strings.ReplaceAll(target, "\\", "/") + "%"
+	target = strings.ReplaceAll(target, "\\", "/")
 
 	entries := []Entry{}
-	// Show all files for directory target, or the exact file for file target.
-	e := db.Select(&entries, "SELECT * FROM entry WHERE original_path LIKE $1", target)
-	utils.Unwrap(e)
-	for i, entry := range entries {
-		fmt.Printf("%d. %s\n", i, entry.OriginalPath)
+	isAnythingPrinted := false
+	if target != "" {
+		// Show all files for directory target, or the exact file for file target.
+		sqlTarget := target + "%"
+		e = db.Select(
+			&entries, "SELECT * FROM entry WHERE original_path LIKE $1", sqlTarget)
+		utils.Unwrap(e)
+		for i, entry := range entries {
+			fmt.Printf("%d. %s\n", i, entry.OriginalPath)
+			isAnythingPrinted = true
+		}
+	}
+	if !isAnythingPrinted {
+		fmt.Printf("No entries for %s", target)
 	}
 }
 
