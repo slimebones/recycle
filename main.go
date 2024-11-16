@@ -17,10 +17,10 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-const REPO_DIR = "C:/users/thed4/.recycle"
-const VAR_DIR = REPO_DIR + "/var"
-const DB_PATH = VAR_DIR + "/main.db"
-const STORAGE_DIR = VAR_DIR + "/storage"
+var REPO_DIR = mustGetenv("$HOME") + "/.recycle"
+var VAR_DIR = REPO_DIR + "/var"
+var DB_PATH = VAR_DIR + "/main.db"
+var STORAGE_DIR = VAR_DIR + "/storage"
 
 type PostponedFileMove struct {
 	from string
@@ -28,6 +28,14 @@ type PostponedFileMove struct {
 }
 
 var cwd string
+
+func mustGetenv(key string) string {
+	value, exists := os.LookupEnv(key)
+	if !exists {
+		panic(fmt.Sprintf("No env %s", key))
+	}
+	return value
+}
 
 func store(targets []string) {
 	// Queue used to postpone actual file movement to the point where all db
