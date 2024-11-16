@@ -17,7 +17,7 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-var REPO_DIR = mustGetenv("$HOME") + "/.recycle"
+var REPO_DIR = mustGetenv("HOME") + "/.recycle"
 var VAR_DIR = REPO_DIR + "/var"
 var DB_PATH = VAR_DIR + "/main.db"
 var STORAGE_DIR = VAR_DIR + "/storage"
