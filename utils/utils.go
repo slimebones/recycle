@@ -29,8 +29,8 @@ func Print(obj ...any) {
 }
 
 // Reference: https://stackoverflow.com/a/13295158/14748231
-func TimeToDate(t Time) (Date, error) {
-	return time.Unix(0, t*int64(time.Millisecond)), nil
+func TimeToDate(t Time) Date {
+	return time.Unix(0, t*int64(time.Millisecond))
 }
 
 func TimeNow() Time {
