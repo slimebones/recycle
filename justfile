@@ -11,3 +11,8 @@ compile:
 install: compile
     @ mkdir ~/.recycle
     @ mv bin/recycle ~/.recycle/recycle
+
+create_test_dir:
+    @ rm -rf var/storeme
+    @ mkdir var/storeme
+    @ "hello" | save var/storeme/test.txt

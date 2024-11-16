@@ -4,11 +4,11 @@ package main
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"path"
 	"recycle/utils"
+	"strings"
 
 	_ "github.com/glebarez/go-sqlite"
 	"github.com/jmoiron/sqlx"
@@ -34,7 +34,7 @@ func store(targets []string) {
 	tx := db.MustBegin()
 	for _, target := range targets {
 		// Original path must be absolute, or we won't able to restore it.
-		originalPath := path.Join(cwd, target)
+		originalPath := strings.ReplaceAll(path.Join(cwd, target), "\\", "/")
 
 		deletionTime := utils.TimeNow()
 		uuid := utils.Uuid4()
@@ -59,8 +59,33 @@ func store(targets []string) {
 func recover(targets []string) {
 }
 
+type Entry struct {
+	Id           int        `db:"id"`
+	Uuid         string     `db:"uuid"`
+	OriginalPath string     `db:"original_path"`
+	DeletionTime utils.Time `db:"deletion_time"`
+}
+
+func list(target string) {
+	if !path.IsAbs(target) {
+		cwd, e := os.Getwd()
+		utils.Unwrap(e)
+		target = path.Join(cwd, target)
+	}
+	target = strings.ReplaceAll(target, "\\", "/") + "%"
+
+	entries := []Entry{}
+	// Show all files for directory target, or the exact file for file target.
+	e := db.Select(&entries, "SELECT * FROM entry WHERE original_path LIKE $1", target)
+	utils.Unwrap(e)
+	for i, entry := range entries {
+		fmt.Printf("%d. %s\n", i, entry.OriginalPath)
+	}
+}
+
 var schema = `
 CREATE TABLE entry (
+	id INTEGER PRIMARY KEY,
 	uuid CHAR(32) NOT NULL UNIQUE,
 	original_path TEXT NOT NULL,
 	deletion_time INTEGER NOT NULL
@@ -68,34 +93,6 @@ CREATE TABLE entry (
 `
 
 var db *sqlx.DB
-
-// https://stackoverflow.com/a/50741908/14748231
-func moveFile(from string, to string) error {
-	inputFile, e := os.Open(from)
-	if e != nil {
-		return fmt.Errorf("couldn't open source file: %v", e)
-	}
-	defer inputFile.Close()
-
-	outputFile, e := os.Create(to)
-	if e != nil {
-		return fmt.Errorf("couldn't open dest file: %v", e)
-	}
-	defer outputFile.Close()
-
-	_, e = io.Copy(outputFile, inputFile)
-	if e != nil {
-		return fmt.Errorf("couldn't copy to dest from source: %v", e)
-	}
-
-	inputFile.Close() // for Windows, close before trying to remove: https://stackoverflow.com/a/64943554/246801
-
-	e = os.Remove(from)
-	if e != nil {
-		return fmt.Errorf("couldn't remove source file: %v", e)
-	}
-	return nil
-}
 
 func setupDb() {
 	var e error
@@ -128,6 +125,13 @@ func main() {
 		}
 		targets := args[2:]
 		recover(targets)
+	case "list":
+		// Listing without arguments will show current directory.
+		target := ""
+		if len(args) == 3 {
+			target = args[2]
+		}
+		list(target)
 	default:
 		panic(fmt.Sprintf("Unrecognized command: %s\n", command))
 	}
